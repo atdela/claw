@@ -1,40 +1,46 @@
 version: "3.9"
 
 services:
-  openclaw-gateway:
-    build: .
-    container_name: openclaw-gateway
+  moltbot-gateway:
+    image: ghcr.io/openclaw/openclaw:latest
+    container_name: moltbot-gateway
+    user: root
+    
+    # Removed the unknown flag --control-ui-allow-insecure-auth
+    command: >
+      sh -c "chown -R 1000:1000 /home/node/config /home/node/workspace && 
+             exec su node -c 'node /app/dist/index.js gateway --allow-unconfigured --port ${OPENCLAW_GATEWAY_PORT} --bind custom'"
+             
     environment:
       HOME: /home/node
       TERM: xterm-256color
       OPENCLAW_GATEWAY_TOKEN: ${OPENCLAW_GATEWAY_TOKEN}
+      OPENCLAW_GATEWAY_PORT: ${OPENCLAW_GATEWAY_PORT}
+      OPENCLAW_BRIDGE_PORT: ${OPENCLAW_BRIDGE_PORT}
+      OPENCLAW_GATEWAY_MODE: local
+      OPENCLAW_GATEWAY_BIND: custom
+      # This handles the auth bypass internally
+      OPENCLAW_CONTROL_UI_ALLOW_INSECURE_AUTH: "true"
+      GATEWAY_TRUSTED_PROXIES: "127.0.0.1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
+      
+      # API Keys
       CLAUDE_AI_SESSION_KEY: ${CLAUDE_AI_SESSION_KEY}
       CLAUDE_WEB_SESSION_KEY: ${CLAUDE_WEB_SESSION_KEY}
       CLAUDE_WEB_COOKIE: ${CLAUDE_WEB_COOKIE}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
+      OPENCLAW_STATE_DIR: /home/node/workspace/openclaw
+
     volumes:
-      - ${OPENCLAW_CONFIG_DIR:-./config}:/home/node/.openclaw
-      - ${OPENCLAW_WORKSPACE_DIR:-./workspace}:/home/node/.openclaw/workspace
+      - moltbot-config:/home/node/config
+      - moltbot-workspace:/home/node/workspace
+
     ports:
-      - "${OPENCLAW_GATEWAY_PORT:-18789}:18789"
-      - "${OPENCLAW_BRIDGE_PORT:-18790}:18790"
+      - "${OPENCLAW_GATEWAY_PORT}:${OPENCLAW_GATEWAY_PORT}"
+      - "${OPENCLAW_BRIDGE_PORT}:${OPENCLAW_BRIDGE_PORT}"
+
     init: true
     restart: unless-stopped
 
-  openclaw-cli:
-    build: .
-    container_name: openclaw-cli
-    environment:
-      HOME: /home/node
-      TERM: xterm-256color
-      OPENCLAW_GATEWAY_TOKEN: ${OPENCLAW_GATEWAY_TOKEN}
-      BROWSER: echo
-      CLAUDE_AI_SESSION_KEY: ${CLAUDE_AI_SESSION_KEY}
-      CLAUDE_WEB_SESSION_KEY: ${CLAUDE_WEB_SESSION_KEY}
-      CLAUDE_WEB_COOKIE: ${CLAUDE_WEB_COOKIE}
-    volumes:
-      - ${OPENCLAW_CONFIG_DIR:-./config}:/home/node/.openclaw
-      - ${OPENCLAW_WORKSPACE_DIR:-./workspace}:/home/node/.openclaw/workspace
-    stdin_open: true
-    tty: true
-    init: true
-    entrypoint: ["node", "dist/index.js"]
+volumes:
+  moltbot-config:
+  moltbot-workspace:
